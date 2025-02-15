@@ -1,4 +1,4 @@
-import { ensureTeamsExist, forceTwoDig } from "./scores-tracking.js";
+import { ensureTeamsExist, forceTwoDig, updateScores } from "./scores-tracking.js";
 
 // const Pool = require('pg').Pool;
 // const pool = new Pool({
@@ -19,8 +19,18 @@ export const populateTeams = async (year, month, dayStart, dayEnd) => {
         if (game.game.bracketRound !== 'First Round') continue;
         const home = game.game.home;
         const away = game.game.away;
-        ensureTeamsExist([home, away]);
+        await ensureTeamsExist([home, away]);
       }
+    }
+  } catch (err) {
+    throw err;
+  }
+};
+
+export const populateGames = async (year, month, dayStart, dayEnd) => {
+  try {
+    for (let day=dayStart; day<=dayEnd; day++) {
+      await updateScores(year, month, day);
     }
   } catch (err) {
     throw err;

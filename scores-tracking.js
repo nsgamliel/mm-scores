@@ -8,6 +8,52 @@ const pool = new Pool({
   port: process.env.PG_PORT
 });
 
+export const dropTables = async () => {
+  try {
+    const res = await pool.query(`
+      DROP TABLE teams;
+      DROP TABLE games;
+    `);
+  } catch (err) {
+    throw err;
+  }
+};
+
+export const createGamesTable = async () => {
+  try {
+    const res = await pool.query(`
+      CREATE TABLE IF NOT EXISTS games (
+        id SERIAL PRIMARY KEY,
+        gameid INT,
+        finalscoreprocessed BOOLEAN,
+        year INT
+      );
+    `);
+  } catch (err) {
+    throw err;
+  }
+};
+
+export const createTeamsTable = async () => {
+  try {
+    const res = await pool.query(`
+      CREATE TABLE IF NOT EXISTS teams (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        short VARCHAR(255) NOT NULL,
+        char6 VARCHAR(7) NOT NULL UNIQUE,
+        seed INT,
+        intournament BOOLEAN,
+        confirmedpts INT,
+        inprogresspts INT,
+        year INT
+      );
+    `);
+  } catch (err) {
+    throw err;
+  }
+};
+
 const createGame = async (id, processed) => {
   try {
     const res = await pool.query('INSERT INTO games (gameid, finalscoreprocessed, year) VALUES ($1, $2, 2024) RETURNING *', [id, processed]);
@@ -46,9 +92,9 @@ const gameFinalProcessed = async (id) => {
   }
 };
 
-const createTeam = async (name, char6, seed) => {
+const createTeam = async (name, short, char6, seed) => {
   try {
-    await pool.query('INSERT INTO teams (name, char6, seed, intournament, confirmedpts, inprogresspts, year) VALUES ($1, $2, $3, true, 0, 0, 2024)', [name, char6, seed]);
+    await pool.query('INSERT INTO teams (name, short, char6, seed, intournament, confirmedpts, inprogresspts, year) VALUES ($1, $2, $3, $4, true, 0, 0, 2024)', [name, short, char6, seed]);
   } catch (err) {
     throw err;
   }
@@ -72,16 +118,18 @@ const teamExists = async (char6) => {
 export const ensureTeamsExist = async (teams) => {
   for (const team of teams) {
     if (!(await teamExists(team.names.char6))) {
-      createTeam(team.names.full, team.names.char6, team.seed);
+      // console.log(`creating team ${team.names.char6}`);
+      await createTeam(team.names.full, team.names.short, team.names.char6, team.seed);
     }
   }
 }
 
 const ensureGameExists = async (gameId, home, away) => {
   if (!(await gameExists(gameId))) {
-    createGame(gameId, false);
+    // console.log(`creating game ${gameId}`);
+    await createGame(gameId, false);
   }
-  ensureTeamsExist([home, away]);
+  await ensureTeamsExist([home, away]);
 };
 
 const getPoints = async (char6) => {
@@ -102,7 +150,12 @@ const getPoints = async (char6) => {
 const finalizeScore = async (team) => {
   try {
     const currentPts = await getPoints(team.names.char6);
-    await pool.query('UPDATE teams SET intournament = $1, confirmedpts = $2, inprogresspts = 0 WHERE char6 = $3', [team.winner, currentPts + Number(team.score), team.names.char6]);
+    // console.log(team.winner, currentPts + Number(team.score), team.names.char6);
+    const res = await pool.query(
+      'UPDATE teams SET intournament=$1, confirmedpts=$2, inprogresspts=0 WHERE char6=$3 RETURNING confirmedpts', 
+      [team.winner, currentPts + Number(team.score), team.names.char6]
+    );
+    // console.log(res.rows);
   } catch (err) {
     throw err;
   }
@@ -118,7 +171,7 @@ const closeGame = async (gameId) => {
 
 const progressScore = async (team) => {
   try {
-    await pool.query('UPDATE teams SET inprogresspts = $1 WHERE char6 = $2', [Number(team.score), team.names.char6]);
+    await pool.query("UPDATE teams SET inprogresspts = $1 WHERE char6 = '$2'", [Number(team.score), team.names.char6]);
   } catch (err) {
     throw err;
   }
@@ -135,27 +188,36 @@ export const forceTwoDig = num => {
 
 const roundsNames = ['First Round', 'Second Round', 'Sweet 16&#174;', 'Elite Eight&#174;', 'FINAL FOUR&#174;', 'Championship'];
 
-export const updateScores = async () => {
-  console.log('ping...');
-  const req = await fetch(`https://data.ncaa.com/casablanca/scoreboard/basketball-men/d1/2024/03/21/scoreboard.json`);
+export const updateScores = async (year, month, day) => {
+  console.log('ping...', `${year}/${forceTwoDig(month)}/${forceTwoDig(day)}`);
+  const req = await fetch(`https://data.ncaa.com/casablanca/scoreboard/basketball-men/d1/${year}/${forceTwoDig(month)}/${forceTwoDig(day)}/scoreboard.json`);
   try {
     const json = await req.json();
-    for (const game of json.games) {
-      if (!roundsNames.includes(game.game.bracketRound)) continue;
-      const gameId = game.game.url.split('/')[2];
-      const home = game.game.home;
-      const away = game.game.away;
-      // console.log(gameId);
+    // console.log(json);
+    if (json.games) {
+      for (const game of json.games) {
+        if (!roundsNames.includes(game.game.bracketRound)) continue;
+        const gameId = game.game.url.split('/')[2];
+        const home = game.game.home;
+        const away = game.game.away;
+        // console.log(gameId);
 
-      await ensureGameExists(gameId, home, away);
+        await ensureGameExists(gameId, home, away);
 
-      if (game.game.finalMessage === "FINAL" && !(await gameFinalProcessed(gameId))) {
-        finalizeScore(home);
-        finalizeScore(away);
-        closeGame(gameId);
-      } else if (game.game.finalMessage !== "FINAL") {
-        progressScore(home);
-        progressScore(away);
+        // console.log(game.game.finalMessage.split(' ')[0]);
+
+        const finalMessage = game.game.finalMessage.split(' ')[0];
+
+        if (finalMessage === "FINAL" && !(await gameFinalProcessed(gameId))) {
+          // console.log(`found final game ${gameId}`);
+          await finalizeScore(home);
+          await finalizeScore(away);
+          await closeGame(gameId);
+        } else if (finalMessage !== "FINAL") {
+          // console.log(`game ${gameId} still in progress`);
+          await progressScore(home);
+          await progressScore(away);
+        }
       }
     }
     console.log('done.');
