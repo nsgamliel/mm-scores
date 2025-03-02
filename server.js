@@ -17,7 +17,7 @@ const seedData = async () => {
   await populateGames(2024,3,21,31);
   await populateGames(2024,4,1,8);
 }; 
-// seedData();
+seedData();
 
 app.use(cors());
 app.use(bodyParser.json());

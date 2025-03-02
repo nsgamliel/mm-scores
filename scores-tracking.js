@@ -45,6 +45,7 @@ export const createTeamsTable = async () => {
         char6 VARCHAR(7) NOT NULL UNIQUE,
         seed INT,
         intournament BOOLEAN,
+        eliminatedon VARCHAR(255),
         confirmedpts INT,
         inprogresspts INT,
         year INT
@@ -95,7 +96,7 @@ const gameFinalProcessed = async (id) => {
 
 const createTeam = async (name, short, char6, seed) => {
   try {
-    await pool.query('INSERT INTO teams (name, short, char6, seed, intournament, confirmedpts, inprogresspts, year) VALUES ($1, $2, $3, $4, true, 0, 0, 2024)', [name, short, char6, seed]);
+    await pool.query("INSERT INTO teams (name, short, char6, seed, intournament, eliminatedon, confirmedpts, inprogresspts, year) VALUES ($1, $2, $3, $4, true, '', 0, 0, 2024)", [name, short, char6, seed]);
   } catch (err) {
     throw err;
   }
@@ -123,7 +124,7 @@ export const ensureTeamsExist = async (teams) => {
       await createTeam(team.names.full, team.names.short, team.names.char6, team.seed);
     }
   }
-}
+};
 
 const ensureGameExists = async (gameId, home, away) => {
   if (!(await gameExists(gameId))) {
@@ -148,13 +149,13 @@ const getPoints = async (char6) => {
   }
 }
 
-const finalizeScore = async (team) => {
+const finalizeScore = async (team, dateStr) => {
   try {
     const currentPts = await getPoints(team.names.char6);
     // console.log(team.winner, currentPts + Number(team.score), team.names.char6);
     const res = await pool.query(
-      'UPDATE teams SET intournament=$1, confirmedpts=$2, inprogresspts=0 WHERE char6=$3 RETURNING confirmedpts', 
-      [team.winner, currentPts + Number(team.score), team.names.char6]
+      'UPDATE teams SET intournament=$1, eliminatedon=$2, confirmedpts=$3, inprogresspts=0 WHERE char6=$4 RETURNING confirmedpts', 
+      [team.winner, team.winner ? "" : dateStr, currentPts + Number(team.score), team.names.char6]
     );
     // console.log(res.rows);
   } catch (err) {
@@ -201,6 +202,7 @@ export const updateScores = async (year, month, day) => {
         const gameId = game.game.url.split('/')[2];
         const home = game.game.home;
         const away = game.game.away;
+        const dateStr = game.game.startDate;
         // console.log(gameId);
 
         await ensureGameExists(gameId, home, away);
@@ -211,8 +213,8 @@ export const updateScores = async (year, month, day) => {
 
         if (finalMessage === "FINAL" && !(await gameFinalProcessed(gameId))) {
           // console.log(`found final game ${gameId}`);
-          await finalizeScore(home);
-          await finalizeScore(away);
+          await finalizeScore(home, dateStr);
+          await finalizeScore(away, dateStr);
           await closeGame(gameId);
         } else if (finalMessage !== "FINAL") {
           // console.log(`game ${gameId} still in progress`);
