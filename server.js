@@ -14,8 +14,8 @@ const seedData = async () => {
   await dropTables();
   await createTeamsTable();
   await createGamesTable();
-  await populateGames(2024,3,21,31);
-  await populateGames(2024,4,1,8);
+  await populateGames(2025,3,20,31);
+  await populateGames(2025,4,1,8);
 }; 
 // seedData();
 

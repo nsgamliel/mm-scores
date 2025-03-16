@@ -198,7 +198,9 @@ export const updateScores = async (year, month, day) => {
     // console.log(json);
     if (json.games) {
       for (const game of json.games) {
+        console.log(game);
         if (!roundsNames.includes(game.game.bracketRound)) continue;
+        if (game.game.gameID === '') continue;
         const gameId = game.game.url.split('/')[2];
         const home = game.game.home;
         const away = game.game.away;
