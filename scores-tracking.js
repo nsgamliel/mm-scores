@@ -119,7 +119,8 @@ const teamExists = async (char6) => {
 
 export const ensureTeamsExist = async (teams) => {
   for (const team of teams) {
-    if (!(await teamExists(team.names.char6))) {
+    // console.log(team.names);
+    if (team.names.char6 !== '' && !(await teamExists(team.names.char6))) {
       // console.log(`creating team ${team.names.char6}`);
       await createTeam(team.names.full, team.names.short, team.names.char6, team.seed);
     }
@@ -172,8 +173,9 @@ const closeGame = async (gameId) => {
 };
 
 const progressScore = async (team) => {
+  // console.log(team);
   try {
-    await pool.query("UPDATE teams SET inprogresspts = $1 WHERE char6 = '$2'", [Number(team.score), team.names.char6]);
+    await pool.query("UPDATE teams SET inprogresspts = $1 WHERE char6 = $2", [Number(team.score), team.names.char6]);
   } catch (err) {
     throw err;
   }
@@ -198,7 +200,7 @@ export const updateScores = async (year, month, day) => {
     // console.log(json);
     if (json.games) {
       for (const game of json.games) {
-        console.log(game);
+        // console.log(game);
         if (!roundsNames.includes(game.game.bracketRound)) continue;
         if (game.game.gameID === '') continue;
         const gameId = game.game.url.split('/')[2];
@@ -218,7 +220,7 @@ export const updateScores = async (year, month, day) => {
           await finalizeScore(home, dateStr);
           await finalizeScore(away, dateStr);
           await closeGame(gameId);
-        } else if (finalMessage !== "FINAL") {
+        } else if (finalMessage !== "FINAL" && game.game.gameState !== 'pre') {
           // console.log(`game ${gameId} still in progress`);
           await progressScore(home);
           await progressScore(away);

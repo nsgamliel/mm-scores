@@ -15,7 +15,7 @@ export const populateTeams = async (year, month, dayStart, dayEnd) => {
       const req = await fetch(`https://data.ncaa.com/casablanca/scoreboard/basketball-men/d1/${year}/${forceTwoDig(month)}/${forceTwoDig(day)}/scoreboard.json`);
       const json = await req.json();
 
-      console.log(json);
+      // console.log(json);
 
       for (const game of json.games) {
         if (game.game.bracketRound !== 'First Round') continue;

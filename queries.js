@@ -1,4 +1,5 @@
 import pg from "pg";
+import { updateScores } from "./scores-tracking.js";
 const { Pool } = pg;
 const pool = new Pool({
   user: process.env.PG_USER,
@@ -11,6 +12,8 @@ const pool = new Pool({
 
 export const getTeams = (request, response) => {
   console.log('Fetching all teams.');
+  const date = new Date();
+  updateScores(2025, date.getMonth() + 1, date.getDate());
   pool.query('SELECT * FROM teams ORDER BY seed ASC', (error, results) => {
     if (error) {
       throw error;

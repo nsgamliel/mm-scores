@@ -19,6 +19,8 @@ const seedData = async () => {
 }; 
 // seedData();
 
+setInterval(() => updateScores(2025, (new Date()).getMonth() + 1, (new Date()).getDate()), 1000 * 60 * 10);
+
 app.use(cors());
 app.use(bodyParser.json());
 app.use(
