@@ -190,7 +190,7 @@ export const forceTwoDig = num => {
   throw new Error('Error: invalid date.')
 };
 
-const roundsNames = ['First Round', 'Second Round', 'Sweet 16&#174;', 'Elite Eight&#174;', 'FINAL FOUR&#174;', 'Championship'];
+const roundsNames = ['First Round', 'Second Round', 'Sweet 16&#174;', 'Sweet 16', 'Elite Eight&#174;', 'Elite Eight', 'FINAL FOUR&#174;', 'FINAL FOUR', 'Championship'];
 
 export const updateScores = async (year, month, day) => {
   console.log('ping...', `${year}/${forceTwoDig(month)}/${forceTwoDig(day)}`);
