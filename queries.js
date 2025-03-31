@@ -14,6 +14,8 @@ export const getTeams = (request, response) => {
   console.log('Fetching all teams.');
   const date = new Date();
   updateScores(2025, date.getMonth() + 1, date.getDate());
+  date.setDate(date.getDate() - 1);
+  updateScores(2025, date.getMonth() + 1, date.getDate());
   pool.query('SELECT * FROM teams ORDER BY seed ASC', (error, results) => {
     if (error) {
       throw error;
